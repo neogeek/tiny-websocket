@@ -38,7 +38,7 @@ namespace TinyWebSocket
 
         public static bool IsOpen(this ClientWebSocket clientWebSocket)
         {
-            return clientWebSocket.State == WebSocketState.Open;
+            return clientWebSocket?.State == WebSocketState.Open;
         }
 
         public static async Task<string> ListenForNextMessage(this ClientWebSocket clientWebSocket,
