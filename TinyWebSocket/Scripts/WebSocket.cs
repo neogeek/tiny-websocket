@@ -20,9 +20,15 @@ namespace TinyWebSocket
         {
             var webSocket = new ClientWebSocket();
 
-            cancellationTokenSource.CancelAfter(TimeSpan.FromSeconds(60));
+            var connectTask = webSocket.ConnectAsync(uri, cancellationTokenSource.Token);
 
-            await webSocket.ConnectAsync(uri, cancellationTokenSource.Token);
+            if (await Task.WhenAny(connectTask,
+                    Task.Delay(TimeSpan.FromSeconds(60), cancellationTokenSource.Token)) ==
+                connectTask && webSocket.State == WebSocketState.Connecting)
+            {
+                await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Client closed",
+                    cancellationTokenSource.Token);
+            }
 
             return webSocket;
         }
