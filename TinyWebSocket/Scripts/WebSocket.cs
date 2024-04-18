@@ -44,7 +44,7 @@ namespace TinyWebSocket
 
         public static bool IsOpen(this ClientWebSocket clientWebSocket)
         {
-            return clientWebSocket.State == WebSocketState.Open;
+            return clientWebSocket?.State == WebSocketState.Open;
         }
 
         public static async Task<string> ListenForNextMessage(this ClientWebSocket clientWebSocket,
@@ -53,20 +53,30 @@ namespace TinyWebSocket
             var byteBuffer = new List<byte>();
             var bytes = new byte[1024];
 
-            WebSocketReceiveResult result;
-
-            do
+            try
             {
-                result = await clientWebSocket.ReceiveAsync(new ArraySegment<byte>(bytes),
+                WebSocketReceiveResult result;
+
+                do
+                {
+                    result = await clientWebSocket.ReceiveAsync(new ArraySegment<byte>(bytes),
+                        cancellationTokenSource.Token);
+
+                    for (var i = 0; i < result.Count; i += 1)
+                    {
+                        byteBuffer.Add(bytes[i]);
+                    }
+                } while (!result.EndOfMessage);
+
+                return Encoding.UTF8.GetString(byteBuffer.ToArray(), 0, byteBuffer.Count);
+            }
+            catch (OperationCanceledException)
+            {
+                await clientWebSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, string.Empty,
                     cancellationTokenSource.Token);
 
-                for (var i = 0; i < result.Count; i += 1)
-                {
-                    byteBuffer.Add(bytes[i]);
-                }
-            } while (!result.EndOfMessage);
-
-            return Encoding.UTF8.GetString(byteBuffer.ToArray(), 0, byteBuffer.Count);
+                throw;
+            }
         }
 
     }

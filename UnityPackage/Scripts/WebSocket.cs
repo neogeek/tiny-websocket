@@ -20,9 +20,15 @@ namespace TinyWebSocket
         {
             var webSocket = new ClientWebSocket();
 
-            cancellationTokenSource.CancelAfter(TimeSpan.FromSeconds(60));
+            var connectTask = webSocket.ConnectAsync(uri, cancellationTokenSource.Token);
 
-            await webSocket.ConnectAsync(uri, cancellationTokenSource.Token);
+            if (await Task.WhenAny(connectTask,
+                    Task.Delay(TimeSpan.FromSeconds(60), cancellationTokenSource.Token)) ==
+                connectTask && webSocket.State == WebSocketState.Connecting)
+            {
+                await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Client closed",
+                    cancellationTokenSource.Token);
+            }
 
             return webSocket;
         }
@@ -47,20 +53,30 @@ namespace TinyWebSocket
             var byteBuffer = new List<byte>();
             var bytes = new byte[1024];
 
-            WebSocketReceiveResult result;
-
-            do
+            try
             {
-                result = await clientWebSocket.ReceiveAsync(new ArraySegment<byte>(bytes),
+                WebSocketReceiveResult result;
+
+                do
+                {
+                    result = await clientWebSocket.ReceiveAsync(new ArraySegment<byte>(bytes),
+                        cancellationTokenSource.Token);
+
+                    for (var i = 0; i < result.Count; i += 1)
+                    {
+                        byteBuffer.Add(bytes[i]);
+                    }
+                } while (!result.EndOfMessage);
+
+                return Encoding.UTF8.GetString(byteBuffer.ToArray(), 0, byteBuffer.Count);
+            }
+            catch (OperationCanceledException)
+            {
+                await clientWebSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, string.Empty,
                     cancellationTokenSource.Token);
 
-                for (var i = 0; i < result.Count; i += 1)
-                {
-                    byteBuffer.Add(bytes[i]);
-                }
-            } while (!result.EndOfMessage);
-
-            return Encoding.UTF8.GetString(byteBuffer.ToArray(), 0, byteBuffer.Count);
+                throw;
+            }
         }
 
     }
