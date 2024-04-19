@@ -11,35 +11,35 @@ namespace TinyWebSocket
     public static class WebSocket
     {
 
-        public static Task<ClientWebSocket> Connect(string url, CancellationTokenSource cancellationTokenSource)
+        public static Task<ClientWebSocket> Connect(string url, CancellationToken cancellationToken)
         {
-            return Connect(new Uri(url), cancellationTokenSource);
+            return Connect(new Uri(url), cancellationToken);
         }
 
-        public static async Task<ClientWebSocket> Connect(Uri uri, CancellationTokenSource cancellationTokenSource)
+        public static async Task<ClientWebSocket> Connect(Uri uri, CancellationToken cancellationToken)
         {
             var webSocket = new ClientWebSocket();
 
-            var connectTask = webSocket.ConnectAsync(uri, cancellationTokenSource.Token);
+            var connectTask = webSocket.ConnectAsync(uri, cancellationToken);
 
             if (await Task.WhenAny(connectTask,
-                    Task.Delay(TimeSpan.FromSeconds(60), cancellationTokenSource.Token)) ==
+                    Task.Delay(TimeSpan.FromSeconds(60), cancellationToken)) ==
                 connectTask && webSocket.State == WebSocketState.Connecting)
             {
                 await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Client closed",
-                    cancellationTokenSource.Token);
+                    cancellationToken);
             }
 
             return webSocket;
         }
 
         public static async Task SendMessage(this ClientWebSocket clientWebSocket, string message,
-            CancellationTokenSource cancellationTokenSource)
+            CancellationToken cancellationToken)
         {
             var encoded = Encoding.UTF8.GetBytes(message);
             var buffer = new ArraySegment<byte>(encoded, 0, encoded.Length);
 
-            await clientWebSocket.SendAsync(buffer, WebSocketMessageType.Text, true, cancellationTokenSource.Token);
+            await clientWebSocket.SendAsync(buffer, WebSocketMessageType.Text, true, cancellationToken);
         }
 
         public static bool IsOpen(this ClientWebSocket clientWebSocket)
@@ -48,7 +48,7 @@ namespace TinyWebSocket
         }
 
         public static async Task<string> ListenForNextMessage(this ClientWebSocket clientWebSocket,
-            CancellationTokenSource cancellationTokenSource)
+            CancellationToken cancellationToken)
         {
             var byteBuffer = new List<byte>();
             var bytes = new byte[1024];
@@ -60,7 +60,7 @@ namespace TinyWebSocket
                 do
                 {
                     result = await clientWebSocket.ReceiveAsync(new ArraySegment<byte>(bytes),
-                        cancellationTokenSource.Token);
+                        cancellationToken);
 
                     for (var i = 0; i < result.Count; i += 1)
                     {
@@ -73,7 +73,7 @@ namespace TinyWebSocket
             catch (OperationCanceledException)
             {
                 await clientWebSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, string.Empty,
-                    cancellationTokenSource.Token);
+                    cancellationToken);
 
                 throw;
             }
