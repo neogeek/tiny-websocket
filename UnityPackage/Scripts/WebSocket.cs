@@ -59,6 +59,8 @@ namespace TinyWebSocket
 
                 do
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
+
                     result = await clientWebSocket.ReceiveAsync(new ArraySegment<byte>(bytes),
                         cancellationToken);
 
