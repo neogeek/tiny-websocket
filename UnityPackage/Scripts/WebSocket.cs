@@ -11,6 +11,10 @@ namespace TinyWebSocket
     public static class WebSocket
     {
 
+        private static bool isSendBusy;
+
+        private static bool isReceiveBusy;
+
         public static Task<ClientWebSocket> Connect(string url, CancellationToken cancellationToken)
         {
             return Connect(new Uri(url), cancellationToken);
@@ -36,10 +40,32 @@ namespace TinyWebSocket
         public static async Task SendMessage(this ClientWebSocket clientWebSocket, string message,
             CancellationToken cancellationToken)
         {
-            var encoded = Encoding.UTF8.GetBytes(message);
-            var buffer = new ArraySegment<byte>(encoded, 0, encoded.Length);
+            if (isSendBusy)
+            {
+                throw new InvalidOperationException("A send operation is already in progress.");
+            }
 
-            await clientWebSocket.SendAsync(buffer, WebSocketMessageType.Text, true, cancellationToken);
+            isSendBusy = true;
+
+            try
+            {
+                var encoded = Encoding.UTF8.GetBytes(message);
+
+                var buffer = new ArraySegment<byte>(encoded, 0, encoded.Length);
+
+                await clientWebSocket.SendAsync(buffer, WebSocketMessageType.Text, true, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                await clientWebSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, string.Empty,
+                    cancellationToken);
+
+                throw;
+            }
+            finally
+            {
+                isSendBusy = false;
+            }
         }
 
         public static bool IsOpen(this ClientWebSocket clientWebSocket)
@@ -50,6 +76,13 @@ namespace TinyWebSocket
         public static async Task<string> ListenForNextMessage(this ClientWebSocket clientWebSocket,
             CancellationToken cancellationToken)
         {
+            if (isReceiveBusy)
+            {
+                throw new InvalidOperationException("A receive operation is already in progress.");
+            }
+
+            isReceiveBusy = true;
+
             var byteBuffer = new List<byte>();
             var bytes = new byte[1024];
 
@@ -78,6 +111,10 @@ namespace TinyWebSocket
                     cancellationToken);
 
                 throw;
+            }
+            finally
+            {
+                isReceiveBusy = false;
             }
         }
 
