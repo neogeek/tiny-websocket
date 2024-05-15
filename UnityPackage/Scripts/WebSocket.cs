@@ -11,61 +11,35 @@ namespace TinyWebSocket
     public static class WebSocket
     {
 
-        private static bool isSendBusy;
-
-        private static bool isReceiveBusy;
-
-        public static Task<ClientWebSocket> Connect(string url, CancellationToken cancellationToken)
+        public static Task<ClientWebSocket> Connect(string url, CancellationTokenSource cancellationTokenSource)
         {
-            return Connect(new Uri(url), cancellationToken);
+            return Connect(new Uri(url), cancellationTokenSource);
         }
 
-        public static async Task<ClientWebSocket> Connect(Uri uri, CancellationToken cancellationToken)
+        public static async Task<ClientWebSocket> Connect(Uri uri, CancellationTokenSource cancellationTokenSource)
         {
             var webSocket = new ClientWebSocket();
 
-            var connectTask = webSocket.ConnectAsync(uri, cancellationToken);
+            var connectTask = webSocket.ConnectAsync(uri, cancellationTokenSource.Token);
 
             if (await Task.WhenAny(connectTask,
-                    Task.Delay(TimeSpan.FromSeconds(60), cancellationToken)) ==
+                    Task.Delay(TimeSpan.FromSeconds(60), cancellationTokenSource.Token)) ==
                 connectTask && webSocket.State == WebSocketState.Connecting)
             {
                 await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Client closed",
-                    cancellationToken);
+                    cancellationTokenSource.Token);
             }
 
             return webSocket;
         }
 
         public static async Task SendMessage(this ClientWebSocket clientWebSocket, string message,
-            CancellationToken cancellationToken)
+            CancellationTokenSource cancellationTokenSource)
         {
-            if (isSendBusy)
-            {
-                throw new InvalidOperationException("A send operation is already in progress.");
-            }
+            var encoded = Encoding.UTF8.GetBytes(message);
+            var buffer = new ArraySegment<byte>(encoded, 0, encoded.Length);
 
-            isSendBusy = true;
-
-            try
-            {
-                var encoded = Encoding.UTF8.GetBytes(message);
-
-                var buffer = new ArraySegment<byte>(encoded, 0, encoded.Length);
-
-                await clientWebSocket.SendAsync(buffer, WebSocketMessageType.Text, true, cancellationToken);
-            }
-            catch (OperationCanceledException)
-            {
-                await clientWebSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, string.Empty,
-                    cancellationToken);
-
-                throw;
-            }
-            finally
-            {
-                isSendBusy = false;
-            }
+            await clientWebSocket.SendAsync(buffer, WebSocketMessageType.Text, true, cancellationTokenSource.Token);
         }
 
         public static bool IsOpen(this ClientWebSocket clientWebSocket)
@@ -74,15 +48,8 @@ namespace TinyWebSocket
         }
 
         public static async Task<string> ListenForNextMessage(this ClientWebSocket clientWebSocket,
-            CancellationToken cancellationToken)
+            CancellationTokenSource cancellationTokenSource)
         {
-            if (isReceiveBusy)
-            {
-                throw new InvalidOperationException("A receive operation is already in progress.");
-            }
-
-            isReceiveBusy = true;
-
             var byteBuffer = new List<byte>();
             var bytes = new byte[1024];
 
@@ -92,10 +59,8 @@ namespace TinyWebSocket
 
                 do
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
-
                     result = await clientWebSocket.ReceiveAsync(new ArraySegment<byte>(bytes),
-                        cancellationToken);
+                        cancellationTokenSource.Token);
 
                     for (var i = 0; i < result.Count; i += 1)
                     {
@@ -108,14 +73,17 @@ namespace TinyWebSocket
             catch (OperationCanceledException)
             {
                 await clientWebSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, string.Empty,
-                    cancellationToken);
+                    cancellationTokenSource.Token);
 
                 throw;
             }
-            finally
-            {
-                isReceiveBusy = false;
-            }
+        }
+
+        public static async Task Disconnect(this ClientWebSocket webSocket,
+            CancellationTokenSource cancellationTokenSource)
+        {
+            await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Client closed",
+                cancellationTokenSource.Token);
         }
 
     }

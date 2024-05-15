@@ -79,6 +79,13 @@ namespace TinyWebSocket
             }
         }
 
+        public static async Task Disconnect(this ClientWebSocket webSocket,
+            CancellationTokenSource cancellationTokenSource)
+        {
+            await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Client closed",
+                cancellationTokenSource.Token);
+        }
+
     }
 
 }
