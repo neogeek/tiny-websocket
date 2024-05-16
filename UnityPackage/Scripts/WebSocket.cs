@@ -18,19 +18,19 @@ namespace TinyWebSocket
 
         public static async Task<ClientWebSocket> Connect(Uri uri, CancellationTokenSource cancellationTokenSource)
         {
-            var webSocket = new ClientWebSocket();
+            var clientWebSocket = new ClientWebSocket();
 
-            var connectTask = webSocket.ConnectAsync(uri, cancellationTokenSource.Token);
+            var connectTask = clientWebSocket.ConnectAsync(uri, cancellationTokenSource.Token);
 
             if (await Task.WhenAny(connectTask,
                     Task.Delay(TimeSpan.FromSeconds(60), cancellationTokenSource.Token)) ==
-                connectTask && webSocket.State == WebSocketState.Connecting)
+                connectTask && clientWebSocket.State == WebSocketState.Connecting)
             {
-                await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Client closed",
+                await clientWebSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Client closed",
                     cancellationTokenSource.Token);
             }
 
-            return webSocket;
+            return clientWebSocket;
         }
 
         public static async Task SendMessage(this ClientWebSocket clientWebSocket, string message,
@@ -79,10 +79,10 @@ namespace TinyWebSocket
             }
         }
 
-        public static async Task Disconnect(this ClientWebSocket webSocket,
+        public static async Task Disconnect(this ClientWebSocket clientWebSocket,
             CancellationTokenSource cancellationTokenSource)
         {
-            await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Client closed",
+            await clientWebSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Client closed",
                 cancellationTokenSource.Token);
         }
 
