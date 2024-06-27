@@ -11,6 +11,8 @@ namespace TinyWebSocket
     public static class WebSocket
     {
 
+        public static int TIMEOUT_IN_SECONDS = 60;
+
         public static Task<ClientWebSocket> Connect(string url, CancellationTokenSource cancellationTokenSource)
         {
             return Connect(new Uri(url), cancellationTokenSource);
@@ -23,7 +25,7 @@ namespace TinyWebSocket
             var connectTask = clientWebSocket.ConnectAsync(uri, cancellationTokenSource.Token);
 
             if (await Task.WhenAny(connectTask,
-                    Task.Delay(TimeSpan.FromSeconds(60), cancellationTokenSource.Token)) ==
+                    Task.Delay(TimeSpan.FromSeconds(TIMEOUT_IN_SECONDS), cancellationTokenSource.Token)) ==
                 connectTask && clientWebSocket.State == WebSocketState.Connecting)
             {
                 await clientWebSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Client closed",
