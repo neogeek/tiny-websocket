@@ -27,13 +27,13 @@ https://github.com/neogeek/tiny-websocket.git?path=/UnityPackage#v1.0.0
 ```csharp
 var cancellationTokenSource = new CancellationTokenSource();
 
-var ws = await WebSocket.Connect("ws://localhost:5000", cancellationTokenSource);
+var ws = await WebSocket.Connect("ws://localhost:5000", cancellationTokenSource.Token);
 
-await ws.SendMessage("Hello, world!", cancellationTokenSource);
+await ws.SendMessage("Hello, world!", cancellationTokenSource.Token);
 
 while (ws.IsOpen())
 {
-    var message = await ws.ListenForNextMessage(cancellationTokenSource);
+    var message = await ws.ListenForNextMessage(cancellationTokenSource.Token);
 
     Console.WriteLine(message);
 }
